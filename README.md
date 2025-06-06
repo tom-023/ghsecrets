@@ -5,9 +5,12 @@ A CLI tool to manage GitHub Secrets with automatic cloud backup to AWS Secrets M
 ## Features
 
 - Push secrets to GitHub repository secrets
-- Automatically backup secrets to AWS Secrets Manager or GCP Secret Manager
+- Automatically backup secrets to AWS Secrets Manager
+- Restore GitHub secrets from AWS Secrets Manager backups
+- Interactive mode for secure secret input (no command history exposure)
 - Configuration file support for default settings
 - Secure encryption using GitHub's public key
+- GCP Secret Manager support (coming soon)
 
 ## Installation
 
@@ -175,11 +178,7 @@ Example AWS Secrets Manager content:
 
 ### Push a secret with GCP backup
 
-```bash
-# With secure prompt
-ghsecrets push -k TOKEN -b gcp
-Enter value for secret 'TOKEN': ****** (input hidden)
-```
+**Note: GCP backup is not yet implemented. This feature will be available in a future release.**
 
 ### Override repository settings
 
@@ -197,12 +196,12 @@ Push a secret to GitHub and optionally backup to cloud.
 **Flags:**
 - `-k, --key`: Secret key name (will prompt if not provided)
 - `-v, --value`: Secret value (will prompt securely if not provided)
-- `-b, --backup`: Backup destination: `aws`, `gcp`, or `none`
+- `-b, --backup`: Backup destination: `aws` or `none` (`gcp` not yet implemented)
 - `-o, --owner`: GitHub repository owner
 - `-r, --repo`: GitHub repository name
 - `--aws-region`: AWS region for Secrets Manager (default: us-east-1)
 - `--aws-profile`: AWS profile to use from ~/.aws/credentials
-- `--gcp-project`: GCP project ID
+- `--gcp-project`: GCP project ID (reserved for future use)
 
 ### `ghsecrets restore`
 

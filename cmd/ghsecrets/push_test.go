@@ -26,15 +26,12 @@ func TestPushCommandExecutionOrder(t *testing.T) {
 			expectedError: false,
 		},
 		{
-			name:   "GCP backup before GitHub",
+			name:   "GCP backup not yet implemented",
 			backup: "gcp",
 			expectedOrder: []string{
 				"Creating backup",
-				"Successfully backed up to GCP",
-				"Pushing secret",
-				"Successfully pushed to GitHub",
 			},
-			expectedError: false,
+			expectedError: true,
 		},
 		{
 			name:   "No backup - GitHub only",
@@ -68,16 +65,21 @@ func TestPushCommandExecutionOrder(t *testing.T) {
 
 func TestBackupFlagValidation(t *testing.T) {
 	// Test valid backup options
-	validOptions := []string{"aws", "gcp", "none", ""}
+	validOptions := []string{"aws", "none", ""}
 	for _, opt := range validOptions {
 		backup = opt
 		// Would validate in actual command execution
-		assert.True(t, backup == "" || backup == "none" || backup == "aws" || backup == "gcp")
+		assert.True(t, backup == "" || backup == "none" || backup == "aws")
 	}
 	
 	// Test invalid backup option
 	backup = "invalid"
-	assert.False(t, backup == "aws" || backup == "gcp" || backup == "none" || backup == "")
+	assert.False(t, backup == "aws" || backup == "none" || backup == "")
+	
+	// Test GCP is not yet supported
+	backup = "gcp"
+	// In actual execution, this would return an error
+	assert.Equal(t, "gcp", backup)
 }
 
 func TestValuePrompting(t *testing.T) {

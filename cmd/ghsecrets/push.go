@@ -32,14 +32,16 @@ var pushCmd = &cobra.Command{
 	Use:   "push",
 	Short: "Push a secret to GitHub and optionally backup to cloud",
 	Long: `Push a secret to GitHub Secrets and optionally backup to
-AWS Secrets Manager or GCP Secret Manager.
+AWS Secrets Manager.
 
 If key or value are not provided via flags, you will be prompted to enter them.
 The value input will be hidden for security.
 
+Note: GCP backup is not yet implemented. Please use AWS backup or none.
+
 Example:
   ghsecrets push -k API_KEY -v "secret-value" -b aws
-  ghsecrets push -k DATABASE_URL -b gcp  # Will prompt for value
+  ghsecrets push -k DATABASE_URL -b aws  # Will prompt for value
   ghsecrets push -k TOKEN  # Will prompt for value
   ghsecrets push  # Will prompt for both key and value`,
 	RunE: runPush,
@@ -50,7 +52,7 @@ func init() {
 
 	pushCmd.Flags().StringVarP(&key, "key", "k", "", "Secret key name (will prompt if not provided)")
 	pushCmd.Flags().StringVarP(&value, "value", "v", "", "Secret value (will prompt if not provided)")
-	pushCmd.Flags().StringVarP(&backup, "backup", "b", "", "Backup destination: aws, gcp, or none")
+	pushCmd.Flags().StringVarP(&backup, "backup", "b", "", "Backup destination: aws or none (gcp not yet implemented)")
 	pushCmd.Flags().StringVarP(&owner, "owner", "o", "", "GitHub repository owner")
 	pushCmd.Flags().StringVarP(&repo, "repo", "r", "", "GitHub repository name")
 	pushCmd.Flags().StringVar(&region, "aws-region", "us-east-1", "AWS region for Secrets Manager")
@@ -127,13 +129,10 @@ func runPush(cmd *cobra.Command, args []string) error {
 			fmt.Println("✓ Successfully backed up to AWS Secrets Manager")
 
 		case "gcp":
-			if err := backupToGCP(ctx, key, value); err != nil {
-				return fmt.Errorf("failed to backup to GCP: %w", err)
-			}
-			fmt.Println("✓ Successfully backed up to GCP Secret Manager")
+			return fmt.Errorf("GCP backup is not yet implemented. Please use 'aws' or 'none'")
 
 		default:
-			return fmt.Errorf("invalid backup destination: %s (use 'aws', 'gcp', or 'none')", backup)
+			return fmt.Errorf("invalid backup destination: %s (use 'aws' or 'none')", backup)
 		}
 	}
 
