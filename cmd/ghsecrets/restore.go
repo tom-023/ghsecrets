@@ -3,10 +3,10 @@ package ghsecrets
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/tom-023/ghsecrets/internal/auth"
 	"github.com/tom-023/ghsecrets/internal/aws"
 	"github.com/tom-023/ghsecrets/internal/github"
 )
@@ -78,17 +78,15 @@ func runRestoreAWS(cmd *cobra.Command, args []string) error {
 	// Get GitHub configuration
 	githubOwner := viper.GetString("github.owner")
 	githubRepo := viper.GetString("github.repo")
-	githubToken := viper.GetString("github.token")
 
 	if githubOwner == "" || githubRepo == "" {
 		return fmt.Errorf("GitHub owner and repo must be specified")
 	}
 
-	if githubToken == "" {
-		githubToken = os.Getenv("GITHUB_TOKEN")
-		if githubToken == "" {
-			return fmt.Errorf("GitHub token must be set in config or GITHUB_TOKEN environment variable")
-		}
+	// Get GitHub token using the same auth logic as push command
+	githubToken, err := auth.GetGitHubToken(viper.GetString("github.token"))
+	if err != nil {
+		return err
 	}
 
 	// Create AWS client
