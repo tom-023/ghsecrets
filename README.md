@@ -186,30 +186,35 @@ Push a secret to GitHub and optionally backup to cloud.
 - `--aws-profile`: AWS profile to use from ~/.aws/credentials
 - `--gcp-project`: GCP project ID
 
-### `ghsecrets restore aws`
+### `ghsecrets restore`
 
-Restore all GitHub Secrets from AWS Secrets Manager backup.
+Restore all GitHub Secrets from backup (AWS Secrets Manager or GCP Secret Manager).
 
 **Usage:**
 ```bash
 # Restore all secrets from AWS to GitHub
-ghsecrets restore aws
+ghsecrets restore -b aws
 
 # Restore to a specific repository
-ghsecrets restore aws -o owner -r repo
+ghsecrets restore -b aws -o owner -r repo
 
 # Use a specific AWS profile
-ghsecrets restore aws --aws-profile production
+ghsecrets restore -b aws --aws-profile production
+
+# Future: Restore from GCP (not yet implemented)
+# ghsecrets restore -b gcp
 ```
 
 **Flags:**
+- `-b, --backup`: Backup source to restore from: `aws` or `gcp` (required)
 - `-o, --owner`: GitHub repository owner
 - `-r, --repo`: GitHub repository name
 - `--aws-region`: AWS region for Secrets Manager (default: us-east-1)
 - `--aws-profile`: AWS profile to use from ~/.aws/credentials
+- `--gcp-project`: GCP project ID (for future GCP support)
 
 This command will:
-1. Read all key-value pairs from the configured AWS secret
+1. Read all key-value pairs from the specified backup source
 2. Create or update each secret in the specified GitHub repository
 3. Report the number of successfully restored secrets
 

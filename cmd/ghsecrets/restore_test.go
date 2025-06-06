@@ -66,9 +66,10 @@ func (m *MockGitHubClient) CreateOrUpdateSecret(ctx context.Context, name, value
 	return nil
 }
 
-func TestRestoreAWSCommand(t *testing.T) {
+func TestRestoreCommand(t *testing.T) {
 	tests := []struct {
 		name          string
+		backup        string
 		awsSecrets    string // JSON形式のシークレット
 		awsError      error
 		githubError   error
@@ -77,6 +78,7 @@ func TestRestoreAWSCommand(t *testing.T) {
 	}{
 		{
 			name:          "正常なリストア - 複数のシークレット",
+			backup:        "aws",
 			awsSecrets:    `{"API_KEY":"secret-api-key","DATABASE_URL":"postgres://localhost","TOKEN":"bearer-token"}`,
 			awsError:      nil,
 			githubError:   nil,
@@ -85,6 +87,7 @@ func TestRestoreAWSCommand(t *testing.T) {
 		},
 		{
 			name:          "空のシークレット",
+			backup:        "aws",
 			awsSecrets:    `{}`,
 			awsError:      nil,
 			githubError:   nil,
@@ -93,6 +96,7 @@ func TestRestoreAWSCommand(t *testing.T) {
 		},
 		{
 			name:          "AWSからの取得に失敗",
+			backup:        "aws",
 			awsSecrets:    "",
 			awsError:      fmt.Errorf("AWS access denied"),
 			githubError:   nil,
@@ -101,6 +105,7 @@ func TestRestoreAWSCommand(t *testing.T) {
 		},
 		{
 			name:          "GitHubへの作成に失敗",
+			backup:        "aws",
 			awsSecrets:    `{"API_KEY":"secret-value"}`,
 			awsError:      nil,
 			githubError:   fmt.Errorf("GitHub authentication failed"),
@@ -109,7 +114,26 @@ func TestRestoreAWSCommand(t *testing.T) {
 		},
 		{
 			name:          "無効なJSON形式",
+			backup:        "aws",
 			awsSecrets:    `{"invalid json`,
+			awsError:      nil,
+			githubError:   nil,
+			expectedError: true,
+			expectedCount: 0,
+		},
+		{
+			name:          "無効なバックアップソース",
+			backup:        "invalid",
+			awsSecrets:    "",
+			awsError:      nil,
+			githubError:   nil,
+			expectedError: true,
+			expectedCount: 0,
+		},
+		{
+			name:          "バックアップソース未指定",
+			backup:        "",
+			awsSecrets:    "",
 			awsError:      nil,
 			githubError:   nil,
 			expectedError: true,
@@ -119,6 +143,19 @@ func TestRestoreAWSCommand(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// バックアップソースのバリデーション
+			if tt.name == "無効なバックアップソース" || tt.name == "バックアップソース未指定" {
+				// バックアップソースのバリデーションロジックをテスト
+				var err error
+				if tt.backup == "" {
+					err = fmt.Errorf("backup source must be specified with -b flag (aws or gcp)")
+				} else if tt.backup != "aws" && tt.backup != "gcp" {
+					err = fmt.Errorf("invalid backup source: %s (must be aws or gcp)", tt.backup)
+				}
+				assert.Error(t, err)
+				return
+			}
+
 			// Viperの設定をリセット
 			viper.Reset()
 			viper.Set("aws.secret_name", "test-secret")

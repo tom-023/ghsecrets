@@ -11,34 +11,56 @@ import (
 	"github.com/tom-023/ghsecrets/internal/github"
 )
 
+var (
+	restoreBackup string
+)
+
 var restoreCmd = &cobra.Command{
 	Use:   "restore",
 	Short: "Restore GitHub Secrets from backup",
 	Long:  `Restore GitHub Secrets from AWS Secrets Manager or GCP Secret Manager`,
-}
-
-var restoreAWSCmd = &cobra.Command{
-	Use:   "aws",
-	Short: "Restore GitHub Secrets from AWS Secrets Manager",
-	Long:  `Restore all GitHub Secrets from AWS Secrets Manager JSON backup`,
-	RunE:  runRestoreAWS,
+	RunE:  runRestore,
 }
 
 func init() {
 	rootCmd.AddCommand(restoreCmd)
-	restoreCmd.AddCommand(restoreAWSCmd)
+
+	// Backup source flag (consistent with push command)
+	restoreCmd.Flags().StringVarP(&restoreBackup, "backup", "b", "", "Backup source to restore from (aws, gcp)")
+
+	// Repository flags
+	restoreCmd.Flags().String("owner", "", "GitHub repository owner")
+	restoreCmd.Flags().String("repo", "", "GitHub repository name")
 
 	// AWS specific flags
-	restoreAWSCmd.Flags().String("aws-region", "us-east-1", "AWS region")
-	restoreAWSCmd.Flags().String("aws-profile", "", "AWS profile name")
-	restoreAWSCmd.Flags().String("owner", "", "GitHub repository owner")
-	restoreAWSCmd.Flags().String("repo", "", "GitHub repository name")
+	restoreCmd.Flags().String("aws-region", "us-east-1", "AWS region")
+	restoreCmd.Flags().String("aws-profile", "", "AWS profile name")
+
+	// GCP specific flags
+	restoreCmd.Flags().String("gcp-project", "", "GCP project ID")
 
 	// Bind flags to viper
-	viper.BindPFlag("aws.region", restoreAWSCmd.Flags().Lookup("aws-region"))
-	viper.BindPFlag("aws.profile", restoreAWSCmd.Flags().Lookup("aws-profile"))
-	viper.BindPFlag("github.owner", restoreAWSCmd.Flags().Lookup("owner"))
-	viper.BindPFlag("github.repo", restoreAWSCmd.Flags().Lookup("repo"))
+	viper.BindPFlag("github.owner", restoreCmd.Flags().Lookup("owner"))
+	viper.BindPFlag("github.repo", restoreCmd.Flags().Lookup("repo"))
+	viper.BindPFlag("aws.region", restoreCmd.Flags().Lookup("aws-region"))
+	viper.BindPFlag("aws.profile", restoreCmd.Flags().Lookup("aws-profile"))
+	viper.BindPFlag("gcp.project", restoreCmd.Flags().Lookup("gcp-project"))
+}
+
+func runRestore(cmd *cobra.Command, args []string) error {
+	// Validate backup source
+	if restoreBackup == "" {
+		return fmt.Errorf("backup source must be specified with -b flag (aws or gcp)")
+	}
+
+	switch restoreBackup {
+	case "aws":
+		return runRestoreAWS(cmd, args)
+	case "gcp":
+		return fmt.Errorf("GCP restore is not yet implemented")
+	default:
+		return fmt.Errorf("invalid backup source: %s (must be aws or gcp)", restoreBackup)
+	}
 }
 
 func runRestoreAWS(cmd *cobra.Command, args []string) error {
