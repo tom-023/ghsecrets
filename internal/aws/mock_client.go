@@ -1,0 +1,79 @@
+package aws
+
+import (
+	"context"
+	"fmt"
+	"sync"
+)
+
+// MockClient is a mock implementation of AWS Secrets Manager client for testing
+type MockClient struct {
+	mu      sync.Mutex
+	secrets map[string]string
+	errors  map[string]error
+}
+
+// NewMockClient creates a new mock AWS client
+func NewMockClient() *MockClient {
+	return &MockClient{
+		secrets: make(map[string]string),
+		errors:  make(map[string]error),
+	}
+}
+
+// SetError sets an error to be returned for a specific operation
+func (m *MockClient) SetError(operation string, err error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.errors[operation] = err
+}
+
+// CreateOrUpdateSecret mocks the CreateOrUpdateSecret method
+func (m *MockClient) CreateOrUpdateSecret(ctx context.Context, name, value, description string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if err := m.errors["CreateOrUpdateSecret"]; err != nil {
+		return err
+	}
+
+	// Simulate "already exists" error if secret exists and we're in create mode
+	if _, exists := m.secrets[name]; exists && m.errors["CreateSecret"] != nil {
+		// Update the secret instead
+		m.secrets[name] = value
+		return nil
+	}
+
+	m.secrets[name] = value
+	return nil
+}
+
+// GetSecret mocks the GetSecret method
+func (m *MockClient) GetSecret(ctx context.Context, name string) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if err := m.errors["GetSecret"]; err != nil {
+		return "", err
+	}
+
+	value, exists := m.secrets[name]
+	if !exists {
+		return "", fmt.Errorf("secret not found: %s", name)
+	}
+
+	return value, nil
+}
+
+// DeleteSecret mocks the DeleteSecret method
+func (m *MockClient) DeleteSecret(ctx context.Context, name string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if err := m.errors["DeleteSecret"]; err != nil {
+		return err
+	}
+
+	delete(m.secrets, name)
+	return nil
+}

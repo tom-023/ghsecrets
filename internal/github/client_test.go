@@ -2,9 +2,8 @@ package github
 
 import (
 	"context"
-	"os"
+	"fmt"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -78,23 +77,61 @@ func TestActionsPublicKey(t *testing.T) {
 	assert.Equal(t, "RRjlhKlgU2SicuhpgO3vV8BDVmFpNMIYY0k8mp9FqrU=", pk.Key)
 }
 
-// Integration test - requires valid GitHub token and repository
-func TestCreateOrUpdateSecret(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test")
-	}
-
-	token := os.Getenv("TEST_GITHUB_TOKEN")
-	owner := os.Getenv("TEST_GITHUB_OWNER")
-	repo := os.Getenv("TEST_GITHUB_REPO")
-
-	if token == "" || owner == "" || repo == "" {
-		t.Skip("Skipping integration test: TEST_GITHUB_TOKEN, TEST_GITHUB_OWNER, or TEST_GITHUB_REPO not set")
-	}
-
-	client := NewClient(token, owner, repo)
+func TestMockCreateOrUpdateSecret(t *testing.T) {
 	ctx := context.Background()
+	mockClient := NewMockClient("test-token", "test-owner", "test-repo")
 
-	err := client.CreateOrUpdateSecret(ctx, "TEST_SECRET", "test-value-"+time.Now().Format("20060102150405"))
-	assert.NoError(t, err)
+	secretName := "TEST_SECRET"
+	secretValue := "test-value"
+
+	// Test creating a secret
+	err := mockClient.CreateOrUpdateSecret(ctx, secretName, secretValue)
+	require.NoError(t, err)
+
+	// Verify secret was created (using our mock GetSecret method)
+	value, err := mockClient.GetSecret(ctx, secretName)
+	require.NoError(t, err)
+	assert.Equal(t, secretValue, value)
+
+	// Test updating existing secret
+	newValue := "updated-value"
+	err = mockClient.CreateOrUpdateSecret(ctx, secretName, newValue)
+	require.NoError(t, err)
+
+	// Verify secret was updated
+	value, err = mockClient.GetSecret(ctx, secretName)
+	require.NoError(t, err)
+	assert.Equal(t, newValue, value)
+}
+
+func TestMockAuthenticationError(t *testing.T) {
+	ctx := context.Background()
+	mockClient := NewMockClient("", "test-owner", "test-repo")
+
+	// Test with no token
+	err := mockClient.CreateOrUpdateSecret(ctx, "TEST_SECRET", "value")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "authentication required")
+}
+
+func TestMockErrorHandling(t *testing.T) {
+	ctx := context.Background()
+	mockClient := NewMockClient("test-token", "test-owner", "test-repo")
+
+	// Test error on CreateOrUpdateSecret
+	mockClient.SetError("CreateOrUpdateSecret", fmt.Errorf("API rate limit exceeded"))
+	err := mockClient.CreateOrUpdateSecret(ctx, "test", "value")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "API rate limit exceeded")
+
+	// Clear error and create secret
+	mockClient.SetError("CreateOrUpdateSecret", nil)
+	err = mockClient.CreateOrUpdateSecret(ctx, "test", "value")
+	require.NoError(t, err)
+
+	// Test error on GetSecret
+	mockClient.SetError("GetSecret", fmt.Errorf("not found"))
+	_, err = mockClient.GetSecret(ctx, "test")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
 }

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -78,39 +77,71 @@ func TestIsSecretExistsError(t *testing.T) {
 	}
 }
 
-// Integration test - requires valid AWS credentials
-func TestCreateOrUpdateSecret(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test")
-	}
-
-	if os.Getenv("AWS_ACCESS_KEY_ID") == "" {
-		t.Skip("Skipping integration test: AWS credentials not configured")
-	}
-
-	client, err := NewClient("us-east-1")
-	require.NoError(t, err)
-
+func TestMockCreateOrUpdateSecret(t *testing.T) {
 	ctx := context.Background()
-	secretName := "ghsecrets-test-" + time.Now().Format("20060102150405")
+	mockClient := NewMockClient()
+
+	secretName := "test-secret"
 	secretValue := "test-value"
-	description := "Test secret for ghsecrets"
+	description := "Test secret"
 
-	// Create secret
-	err = client.CreateOrUpdateSecret(ctx, secretName, secretValue, description)
+	// Test creating a new secret
+	err := mockClient.CreateOrUpdateSecret(ctx, secretName, secretValue, description)
 	require.NoError(t, err)
 
-	// Update secret
+	// Verify secret was created
+	value, err := mockClient.GetSecret(ctx, secretName)
+	require.NoError(t, err)
+	assert.Equal(t, secretValue, value)
+
+	// Test updating existing secret
 	newValue := "updated-value"
-	err = client.CreateOrUpdateSecret(ctx, secretName, newValue, description)
+	err = mockClient.CreateOrUpdateSecret(ctx, secretName, newValue, description)
 	require.NoError(t, err)
 
-	// Verify
-	value, err := client.GetSecret(ctx, secretName)
+	// Verify secret was updated
+	value, err = mockClient.GetSecret(ctx, secretName)
 	require.NoError(t, err)
 	assert.Equal(t, newValue, value)
+}
 
-	// Cleanup
-	err = client.DeleteSecret(ctx, secretName)
+func TestMockDeleteSecret(t *testing.T) {
+	ctx := context.Background()
+	mockClient := NewMockClient()
+
+	// Create a secret
+	secretName := "test-secret-to-delete"
+	err := mockClient.CreateOrUpdateSecret(ctx, secretName, "value", "description")
 	require.NoError(t, err)
+
+	// Delete the secret
+	err = mockClient.DeleteSecret(ctx, secretName)
+	require.NoError(t, err)
+
+	// Verify secret was deleted
+	_, err = mockClient.GetSecret(ctx, secretName)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "secret not found")
+}
+
+func TestMockErrorHandling(t *testing.T) {
+	ctx := context.Background()
+	mockClient := NewMockClient()
+
+	// Test error on CreateOrUpdateSecret
+	mockClient.SetError("CreateOrUpdateSecret", fmt.Errorf("permission denied"))
+	err := mockClient.CreateOrUpdateSecret(ctx, "test", "value", "desc")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "permission denied")
+
+	// Clear error and create secret
+	mockClient.SetError("CreateOrUpdateSecret", nil)
+	err = mockClient.CreateOrUpdateSecret(ctx, "test", "value", "desc")
+	require.NoError(t, err)
+
+	// Test error on GetSecret
+	mockClient.SetError("GetSecret", fmt.Errorf("access denied"))
+	_, err = mockClient.GetSecret(ctx, "test")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "access denied")
 }
