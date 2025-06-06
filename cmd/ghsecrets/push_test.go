@@ -1,11 +1,8 @@
 package ghsecrets
 
 import (
-	"bytes"
-	"strings"
 	"testing"
 
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -70,8 +67,6 @@ func TestPushCommandExecutionOrder(t *testing.T) {
 }
 
 func TestBackupFlagValidation(t *testing.T) {
-	cmd := &cobra.Command{}
-	
 	// Test valid backup options
 	validOptions := []string{"aws", "gcp", "none", ""}
 	for _, opt := range validOptions {
