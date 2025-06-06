@@ -79,16 +79,9 @@ func runPush(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("GitHub owner and repo must be specified via flags or config file")
 	}
 
-	// Push to GitHub Secrets
-	fmt.Printf("Pushing secret '%s' to GitHub repository %s/%s...\n", key, owner, repo)
-	ghClient := github.NewClient(ghToken, owner, repo)
-	if err := ghClient.CreateOrUpdateSecret(ctx, key, value); err != nil {
-		return fmt.Errorf("failed to push to GitHub: %w", err)
-	}
-	fmt.Println("✓ Successfully pushed to GitHub Secrets")
-
-	// Handle backup if specified
+	// Handle backup first if specified
 	if backup != "" && backup != "none" {
+		fmt.Printf("Creating backup for secret '%s'...\n", key)
 		switch strings.ToLower(backup) {
 		case "aws":
 			if err := backupToAWS(ctx, key, value); err != nil {
@@ -106,6 +99,14 @@ func runPush(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("invalid backup destination: %s (use 'aws', 'gcp', or 'none')", backup)
 		}
 	}
+
+	// Push to GitHub Secrets after successful backup (or if no backup specified)
+	fmt.Printf("Pushing secret '%s' to GitHub repository %s/%s...\n", key, owner, repo)
+	ghClient := github.NewClient(ghToken, owner, repo)
+	if err := ghClient.CreateOrUpdateSecret(ctx, key, value); err != nil {
+		return fmt.Errorf("failed to push to GitHub: %w", err)
+	}
+	fmt.Println("✓ Successfully pushed to GitHub Secrets")
 
 	return nil
 }

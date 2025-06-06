@@ -143,9 +143,9 @@ Then push secrets:
 ghsecrets push -k DATABASE_URL -v "postgres://..." -b aws
 ```
 
-This will:
-1. Create/update the GitHub secret `DATABASE_URL`
-2. Store the key-value pair in AWS Secrets Manager under the configured `secret_name` as JSON
+This will (in order):
+1. Store the key-value pair in AWS Secrets Manager under the configured `secret_name` as JSON
+2. Create/update the GitHub secret `DATABASE_URL` (only if backup succeeds)
 
 Example AWS Secrets Manager content:
 ```json
