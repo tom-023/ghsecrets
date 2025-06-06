@@ -78,16 +78,37 @@ cp ghsecrets.yaml.example ghsecrets.yaml
 Configure AWS credentials using standard AWS credential chain:
 - Environment variables (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`)
 - AWS credentials file (`~/.aws/credentials`)
+- AWS SSO profiles (`~/.aws/config`)
 - IAM role (when running on EC2/ECS/Lambda)
 
 You can specify which AWS profile to use:
 ```bash
-# Use a specific profile from ~/.aws/credentials
+# Use a specific profile from ~/.aws/credentials or ~/.aws/config
 ghsecrets push -k KEY -v VALUE -b aws --aws-profile production
+
+# Use AWS SSO profile (login first with: aws sso login --profile blog-profile)
+ghsecrets push -k KEY -v VALUE -b aws --aws-profile blog-profile
 
 # Or set in config file
 # aws:
 #   profile: production
+```
+
+#### AWS SSO Configuration Example
+If you have SSO configured in `~/.aws/config`:
+```ini
+[profile blog-profile]
+sso_start_url = https://d-0000000000.awsapps.com/start
+sso_region = ap-northeast-1
+sso_account_id = 000000000000
+sso_role_name = AWSAdministratorAccess
+region = ap-northeast-1
+```
+
+Make sure to login first:
+```bash
+aws sso login --profile blog-profile
+ghsecrets push -k SECRET -v "value" -b aws --aws-profile blog-profile
 ```
 
 ### GCP
