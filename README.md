@@ -25,7 +25,7 @@ go build -o ghsecrets main.go
 
 ## Configuration
 
-Create a configuration file at `~/.ghsecrets.yaml`:
+Create a configuration file `ghsecrets.yaml` in your current directory:
 
 ```yaml
 # GitHub configuration
@@ -58,7 +58,7 @@ gcp:
 ### GitHub
 You can authenticate using one of these methods (in order of priority):
 
-1. **Configuration file** - Set token in `~/.ghsecrets.yaml`
+1. **Configuration file** - Set token in `ghsecrets.yaml`
 2. **Environment variable** - Set `GITHUB_TOKEN`
 3. **GitHub CLI** - Login with `gh auth login` (recommended)
 
@@ -70,7 +70,8 @@ gh auth login
 export GITHUB_TOKEN=your-github-token
 
 # Option 3: Add to config file
-# See .ghsecrets.yaml.example
+# Copy ghsecrets.yaml.example to ghsecrets.yaml and edit
+cp ghsecrets.yaml.example ghsecrets.yaml
 ```
 
 ### AWS

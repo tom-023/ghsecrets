@@ -33,7 +33,7 @@ func TestInitConfig(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Create test config file
-	configPath := filepath.Join(tmpDir, ".ghsecrets.yaml")
+	configPath := filepath.Join(tmpDir, "ghsecrets.yaml")
 	configContent := `
 github:
   owner: test-owner
