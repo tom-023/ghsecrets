@@ -56,9 +56,21 @@ gcp:
 ## Authentication
 
 ### GitHub
-Set your GitHub personal access token with repository secrets permissions:
+You can authenticate using one of these methods (in order of priority):
+
+1. **Configuration file** - Set token in `~/.ghsecrets.yaml`
+2. **Environment variable** - Set `GITHUB_TOKEN`
+3. **GitHub CLI** - Login with `gh auth login` (recommended)
+
 ```bash
+# Option 1: Use gh CLI (recommended)
+gh auth login
+
+# Option 2: Use environment variable
 export GITHUB_TOKEN=your-github-token
+
+# Option 3: Add to config file
+# See .ghsecrets.yaml.example
 ```
 
 ### AWS

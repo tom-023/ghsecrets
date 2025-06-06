@@ -3,11 +3,11 @@ package ghsecrets
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/tom-023/ghsecrets/internal/auth"
 	"github.com/tom-023/ghsecrets/internal/aws"
 	"github.com/tom-023/ghsecrets/internal/gcp"
 	"github.com/tom-023/ghsecrets/internal/github"
@@ -59,13 +59,10 @@ func init() {
 func runPush(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
-	// Get GitHub configuration
-	ghToken := viper.GetString("github.token")
-	if ghToken == "" {
-		ghToken = os.Getenv("GITHUB_TOKEN")
-	}
-	if ghToken == "" {
-		return fmt.Errorf("GitHub token not found. Set GITHUB_TOKEN environment variable or configure in .ghsecrets.yaml")
+	// Get GitHub token
+	ghToken, err := auth.GetGitHubToken(viper.GetString("github.token"))
+	if err != nil {
+		return err
 	}
 
 	if owner == "" {
