@@ -95,19 +95,6 @@ func (c *Client) GetSecret(ctx context.Context, name string) (string, error) {
 	return string(result.Payload.Data), nil
 }
 
-func (c *Client) DeleteSecret(ctx context.Context, name string) error {
-	deleteReq := &secretmanagerpb.DeleteSecretRequest{
-		Name: fmt.Sprintf("projects/%s/secrets/%s", c.projectID, name),
-	}
-
-	err := c.client.DeleteSecret(ctx, deleteReq)
-	if err != nil {
-		return fmt.Errorf("failed to delete secret: %w", err)
-	}
-
-	return nil
-}
-
 func (c *Client) Close() error {
 	return c.client.Close()
 }

@@ -91,18 +91,6 @@ func (c *Client) GetSecret(ctx context.Context, name string) (string, error) {
 	return "", fmt.Errorf("secret value is empty")
 }
 
-func (c *Client) DeleteSecret(ctx context.Context, name string) error {
-	_, err := c.client.DeleteSecret(ctx, &secretsmanager.DeleteSecretInput{
-		SecretId:                   aws.String(name),
-		ForceDeleteWithoutRecovery: aws.Bool(true),
-	})
-	if err != nil {
-		return fmt.Errorf("failed to delete secret: %w", err)
-	}
-
-	return nil
-}
-
 func isSecretExistsError(err error) bool {
 	// Check if error indicates that secret already exists
 	if err != nil {

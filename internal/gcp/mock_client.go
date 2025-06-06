@@ -67,19 +67,6 @@ func (m *MockClient) GetSecret(ctx context.Context, name string) (string, error)
 	return value, nil
 }
 
-// DeleteSecret mocks the DeleteSecret method
-func (m *MockClient) DeleteSecret(ctx context.Context, name string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if err := m.errors["DeleteSecret"]; err != nil {
-		return err
-	}
-
-	delete(m.secrets, name)
-	return nil
-}
-
 // Close mocks the Close method
 func (m *MockClient) Close() error {
 	return nil

@@ -113,24 +113,6 @@ func TestMockCreateOrUpdateSecret(t *testing.T) {
 	assert.Equal(t, newValue, value)
 }
 
-func TestMockDeleteSecret(t *testing.T) {
-	ctx := context.Background()
-	mockClient := NewMockClient("test-project")
-
-	// Create a secret
-	secretName := "test-secret-to-delete"
-	err := mockClient.CreateOrUpdateSecret(ctx, secretName, "value")
-	require.NoError(t, err)
-
-	// Delete the secret
-	err = mockClient.DeleteSecret(ctx, secretName)
-	require.NoError(t, err)
-
-	// Verify secret was deleted
-	_, err = mockClient.GetSecret(ctx, secretName)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "secret not found")
-}
 
 func TestMockErrorHandling(t *testing.T) {
 	ctx := context.Background()
