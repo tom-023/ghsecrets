@@ -2,11 +2,13 @@ package aws
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
+	"github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
 )
 
 type Client struct {
@@ -50,27 +52,29 @@ func NewClientWithOptions(opts ClientOptions) (*Client, error) {
 }
 
 func (c *Client) CreateOrUpdateSecret(ctx context.Context, name, value, description string) error {
-	// First, try to create the secret
-	_, err := c.client.CreateSecret(ctx, &secretsmanager.CreateSecretInput{
-		Name:         aws.String(name),
+	// Try to update existing secret first
+	_, err := c.client.UpdateSecret(ctx, &secretsmanager.UpdateSecretInput{
+		SecretId:     aws.String(name),
 		SecretString: aws.String(value),
 		Description:  aws.String(description),
 	})
 
 	if err != nil {
-		// If secret already exists, update it
-		if isSecretExistsError(err) {
-			_, err = c.client.UpdateSecret(ctx, &secretsmanager.UpdateSecretInput{
-				SecretId:     aws.String(name),
+		// Check if secret doesn't exist
+		var resourceNotFoundErr *types.ResourceNotFoundException
+		if errors.As(err, &resourceNotFoundErr) {
+			// Secret doesn't exist, try to create it
+			_, createErr := c.client.CreateSecret(ctx, &secretsmanager.CreateSecretInput{
+				Name:         aws.String(name),
 				SecretString: aws.String(value),
 				Description:  aws.String(description),
 			})
-			if err != nil {
-				return fmt.Errorf("failed to update secret: %w", err)
+			if createErr != nil {
+				return fmt.Errorf("failed to create secret: %w", createErr)
 			}
-		} else {
-			return fmt.Errorf("failed to create secret: %w", err)
+			return nil
 		}
+		return fmt.Errorf("failed to update secret: %w", err)
 	}
 
 	return nil
@@ -93,9 +97,6 @@ func (c *Client) GetSecret(ctx context.Context, name string) (string, error) {
 
 func isSecretExistsError(err error) bool {
 	// Check if error indicates that secret already exists
-	if err != nil {
-		return err.Error() == "ResourceExistsException: The operation failed because the secret version already exists." ||
-			err.Error() == "ResourceExistsException: A resource with the ID you requested already exists."
-	}
-	return false
+	var resourceExistsErr *types.ResourceExistsException
+	return errors.As(err, &resourceExistsErr)
 }
