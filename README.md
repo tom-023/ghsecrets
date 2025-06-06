@@ -43,6 +43,10 @@ github:
 aws:
   # AWS region for Secrets Manager
   region: us-east-1
+  
+  # Secret name in AWS Secrets Manager
+  # All GitHub secrets will be stored in this single secret as JSON
+  secret_name: github-secrets-backup
 
 # GCP configuration
 gcp:
@@ -129,6 +133,19 @@ ghsecrets push -k API_KEY -v "secret-value"
 
 ```bash
 ghsecrets push -k DATABASE_URL -v "postgres://..." -b aws
+```
+
+This will:
+1. Create/update the GitHub secret `DATABASE_URL`
+2. Store the key-value pair in AWS Secrets Manager under the configured `secret_name` as JSON
+
+Example AWS Secrets Manager content:
+```json
+{
+  "DATABASE_URL": "postgres://...",
+  "API_KEY": "sk-...",
+  "OTHER_SECRET": "value"
+}
 ```
 
 ### Push a secret with GCP backup

@@ -117,6 +117,11 @@ func backupToAWS(ctx context.Context, key, value string) error {
 	}
 
 	awsProfile := viper.GetString("aws.profile")
+	awsSecretName := viper.GetString("aws.secret_name")
+	if awsSecretName == "" {
+		// Default secret name if not specified
+		awsSecretName = fmt.Sprintf("github-secrets-%s-%s", owner, repo)
+	}
 	
 	awsClient, err := aws.NewClientWithOptions(aws.ClientOptions{
 		Region:  awsRegion,
@@ -126,8 +131,9 @@ func backupToAWS(ctx context.Context, key, value string) error {
 		return err
 	}
 
-	description := fmt.Sprintf("GitHub Secret backup for %s/%s", owner, repo)
-	return awsClient.CreateOrUpdateSecret(ctx, key, value, description)
+	// Use JSON client to store multiple keys in a single secret
+	jsonClient := aws.NewJSONClient(awsClient, awsSecretName)
+	return jsonClient.AddOrUpdateKey(ctx, key, value)
 }
 
 func backupToGCP(ctx context.Context, key, value string) error {
