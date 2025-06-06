@@ -127,7 +127,17 @@ Configure GCP credentials:
 ### Push a secret to GitHub only
 
 ```bash
+# Provide all values directly (not recommended for sensitive data)
 ghsecrets push -k API_KEY -v "secret-value"
+
+# Prompt for value only (recommended)
+ghsecrets push -k API_KEY
+Enter value for secret 'API_KEY': ****** (input hidden)
+
+# Prompt for both key and value (most secure)
+ghsecrets push
+Enter secret key name: API_KEY
+Enter value for secret 'API_KEY': ****** (input hidden)
 ```
 
 ### Push a secret with AWS backup
@@ -140,7 +150,12 @@ aws secretsmanager create-secret --name github-secrets-backup --secret-string '{
 
 Then push secrets:
 ```bash
+# With value flag
 ghsecrets push -k DATABASE_URL -v "postgres://..." -b aws
+
+# With secure prompt (recommended)
+ghsecrets push -k DATABASE_URL -b aws
+Enter value for secret 'DATABASE_URL': ****** (input hidden)
 ```
 
 This will (in order):
@@ -161,13 +176,16 @@ Example AWS Secrets Manager content:
 ### Push a secret with GCP backup
 
 ```bash
-ghsecrets push -k TOKEN -v "token123" -b gcp
+# With secure prompt
+ghsecrets push -k TOKEN -b gcp
+Enter value for secret 'TOKEN': ****** (input hidden)
 ```
 
 ### Override repository settings
 
 ```bash
-ghsecrets push -k SECRET_KEY -v "value" -o owner -r repo -b aws
+ghsecrets push -k SECRET_KEY -o owner -r repo -b aws
+Enter value for secret 'SECRET_KEY': ****** (input hidden)
 ```
 
 ## Command Reference
@@ -177,8 +195,8 @@ ghsecrets push -k SECRET_KEY -v "value" -o owner -r repo -b aws
 Push a secret to GitHub and optionally backup to cloud.
 
 **Flags:**
-- `-k, --key`: Secret key name (required)
-- `-v, --value`: Secret value (required)
+- `-k, --key`: Secret key name (will prompt if not provided)
+- `-v, --value`: Secret value (will prompt securely if not provided)
 - `-b, --backup`: Backup destination: `aws`, `gcp`, or `none`
 - `-o, --owner`: GitHub repository owner
 - `-r, --repo`: GitHub repository name
@@ -223,6 +241,9 @@ This command will:
 - Secrets are encrypted using GitHub's repository public key before transmission
 - Cloud backups use the respective service's encryption at rest
 - Never commit secrets directly to your repository
+- When entering secrets interactively, input is hidden from the terminal (no echo)
+- Avoid passing secrets via command-line arguments as they may be visible in process lists and shell history
+- Recommended: Use the interactive prompt feature (`ghsecrets push -k KEY`) instead of `-v` flag for sensitive values
 
 ## License
 

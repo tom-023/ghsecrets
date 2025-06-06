@@ -1,9 +1,12 @@
 package ghsecrets
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"os"
 	"strings"
+	"syscall"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -11,6 +14,7 @@ import (
 	"github.com/tom-023/ghsecrets/internal/aws"
 	"github.com/tom-023/ghsecrets/internal/gcp"
 	"github.com/tom-023/ghsecrets/internal/github"
+	"golang.org/x/term"
 )
 
 var (
@@ -30,27 +34,28 @@ var pushCmd = &cobra.Command{
 	Long: `Push a secret to GitHub Secrets and optionally backup to
 AWS Secrets Manager or GCP Secret Manager.
 
+If key or value are not provided via flags, you will be prompted to enter them.
+The value input will be hidden for security.
+
 Example:
   ghsecrets push -k API_KEY -v "secret-value" -b aws
-  ghsecrets push -k DATABASE_URL -v "postgres://..." -b gcp
-  ghsecrets push -k TOKEN -v "token123" (GitHub only)`,
+  ghsecrets push -k DATABASE_URL -b gcp  # Will prompt for value
+  ghsecrets push -k TOKEN  # Will prompt for value
+  ghsecrets push  # Will prompt for both key and value`,
 	RunE: runPush,
 }
 
 func init() {
 	rootCmd.AddCommand(pushCmd)
 
-	pushCmd.Flags().StringVarP(&key, "key", "k", "", "Secret key name (required)")
-	pushCmd.Flags().StringVarP(&value, "value", "v", "", "Secret value (required)")
+	pushCmd.Flags().StringVarP(&key, "key", "k", "", "Secret key name (will prompt if not provided)")
+	pushCmd.Flags().StringVarP(&value, "value", "v", "", "Secret value (will prompt if not provided)")
 	pushCmd.Flags().StringVarP(&backup, "backup", "b", "", "Backup destination: aws, gcp, or none")
 	pushCmd.Flags().StringVarP(&owner, "owner", "o", "", "GitHub repository owner")
 	pushCmd.Flags().StringVarP(&repo, "repo", "r", "", "GitHub repository name")
 	pushCmd.Flags().StringVar(&region, "aws-region", "us-east-1", "AWS region for Secrets Manager")
 	pushCmd.Flags().StringVar(&awsProfile, "aws-profile", "", "AWS profile to use (from ~/.aws/credentials)")
 	pushCmd.Flags().StringVar(&project, "gcp-project", "", "GCP project ID")
-
-	pushCmd.MarkFlagRequired("key")
-	pushCmd.MarkFlagRequired("value")
 
 	viper.BindPFlag("github.owner", pushCmd.Flags().Lookup("owner"))
 	viper.BindPFlag("github.repo", pushCmd.Flags().Lookup("repo"))
@@ -77,6 +82,38 @@ func runPush(cmd *cobra.Command, args []string) error {
 
 	if owner == "" || repo == "" {
 		return fmt.Errorf("GitHub owner and repo must be specified via flags or config file")
+	}
+
+	// If key is not provided, prompt for it
+	if key == "" {
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Print("Enter secret key name: ")
+		keyInput, err := reader.ReadString('\n')
+		if err != nil {
+			return fmt.Errorf("failed to read secret key: %w", err)
+		}
+		key = strings.TrimSpace(keyInput)
+		
+		// Verify the key is not empty
+		if key == "" {
+			return fmt.Errorf("secret key cannot be empty")
+		}
+	}
+
+	// If value is not provided, prompt for it
+	if value == "" {
+		fmt.Printf("Enter value for secret '%s': ", key)
+		bytePassword, err := term.ReadPassword(int(syscall.Stdin))
+		if err != nil {
+			return fmt.Errorf("failed to read secret value: %w", err)
+		}
+		fmt.Println() // New line after password input
+		value = string(bytePassword)
+		
+		// Verify the value is not empty
+		if value == "" {
+			return fmt.Errorf("secret value cannot be empty")
+		}
 	}
 
 	// Handle backup first if specified

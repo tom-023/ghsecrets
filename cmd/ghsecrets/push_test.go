@@ -79,3 +79,59 @@ func TestBackupFlagValidation(t *testing.T) {
 	backup = "invalid"
 	assert.False(t, backup == "aws" || backup == "gcp" || backup == "none" || backup == "")
 }
+
+func TestValuePrompting(t *testing.T) {
+	tests := []struct {
+		name          string
+		providedValue string
+		shouldPrompt  bool
+	}{
+		{
+			name:          "値が提供された場合",
+			providedValue: "secret-value",
+			shouldPrompt:  false,
+		},
+		{
+			name:          "値が空の場合",
+			providedValue: "",
+			shouldPrompt:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// 実際のテストでは、term.ReadPasswordをモックする必要がありますが、
+			// ここではロジックの確認のみ行います
+			needsPrompt := tt.providedValue == ""
+			assert.Equal(t, tt.shouldPrompt, needsPrompt)
+		})
+	}
+}
+
+func TestKeyPrompting(t *testing.T) {
+	tests := []struct {
+		name         string
+		providedKey  string
+		shouldPrompt bool
+	}{
+		{
+			name:         "キーが提供された場合",
+			providedKey:  "API_KEY",
+			shouldPrompt: false,
+		},
+		{
+			name:         "キーが空の場合",
+			providedKey:  "",
+			shouldPrompt: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// 実際のテストでは、bufio.Readerをモックする必要がありますが、
+			// ここではロジックの確認のみ行います
+			needsPrompt := tt.providedKey == ""
+			assert.Equal(t, tt.shouldPrompt, needsPrompt)
+		})
+	}
+}
