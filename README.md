@@ -46,6 +46,7 @@ aws:
   
   # Secret name in AWS Secrets Manager
   # All GitHub secrets will be stored in this single secret as JSON
+  # NOTE: This secret must be created in AWS first (can be empty JSON: {})
   secret_name: github-secrets-backup
 
 # GCP configuration
@@ -131,6 +132,13 @@ ghsecrets push -k API_KEY -v "secret-value"
 
 ### Push a secret with AWS backup
 
+First, create the secret in AWS Secrets Manager:
+```bash
+# Create an empty secret in AWS
+aws secretsmanager create-secret --name github-secrets-backup --secret-string '{}'
+```
+
+Then push secrets:
 ```bash
 ghsecrets push -k DATABASE_URL -v "postgres://..." -b aws
 ```
@@ -147,6 +155,8 @@ Example AWS Secrets Manager content:
   "OTHER_SECRET": "value"
 }
 ```
+
+**Note**: The AWS secret must exist before using ghsecrets. If it doesn't exist, you'll get an error message.
 
 ### Push a secret with GCP backup
 

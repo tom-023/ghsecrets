@@ -22,15 +22,20 @@ func NewJSONClient(client SecretClient, secretName string) *JSONClient {
 
 // AddOrUpdateKey adds or updates a key-value pair in the JSON secret
 func (j *JSONClient) AddOrUpdateKey(ctx context.Context, key, value string) error {
-	// Get existing secret data
-	secretData := make(map[string]string)
-	
+	// First check if the secret exists
 	existingJSON, err := j.client.GetSecret(ctx, j.secretName)
-	if err == nil && existingJSON != "" {
-		// Secret exists, unmarshal existing data
+	if err != nil {
+		// Secret doesn't exist
+		return fmt.Errorf("AWS Secrets Manager secret '%s' not found. Please create it first in AWS console or specify a different secret_name in config", j.secretName)
+	}
+	
+	// Parse existing secret data
+	secretData := make(map[string]string)
+	if existingJSON != "" {
 		if err := json.Unmarshal([]byte(existingJSON), &secretData); err != nil {
-			// If unmarshaling fails, start fresh
-			secretData = make(map[string]string)
+			// If unmarshaling fails, it might not be JSON format
+			// Return error instead of starting fresh
+			return fmt.Errorf("secret '%s' exists but is not in valid JSON format: %w", j.secretName, err)
 		}
 	}
 	

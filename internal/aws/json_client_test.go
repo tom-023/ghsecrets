@@ -14,8 +14,12 @@ func TestJSONClient_AddOrUpdateKey(t *testing.T) {
 	mockClient := NewMockClient()
 	jsonClient := NewJSONClient(mockClient, "test-secret")
 
+	// First create the secret (empty JSON)
+	err := mockClient.CreateOrUpdateSecret(ctx, "test-secret", "{}", "test secret")
+	require.NoError(t, err)
+
 	// Test adding first key
-	err := jsonClient.AddOrUpdateKey(ctx, "key1", "value1")
+	err = jsonClient.AddOrUpdateKey(ctx, "key1", "value1")
 	require.NoError(t, err)
 
 	// Verify the secret contains the key
@@ -103,12 +107,22 @@ func TestJSONClient_NonExistentSecret(t *testing.T) {
 	mockClient := NewMockClient()
 	jsonClient := NewJSONClient(mockClient, "non-existent-secret")
 
-	// Test adding key to non-existent secret (should create it)
+	// Test adding key to non-existent secret (should return error)
 	err := jsonClient.AddOrUpdateKey(ctx, "key1", "value1")
-	require.NoError(t, err)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "AWS Secrets Manager secret 'non-existent-secret' not found")
+}
 
-	// Verify secret was created
-	value, err := jsonClient.GetKey(ctx, "key1")
-	require.NoError(t, err)
-	assert.Equal(t, "value1", value)
+func TestJSONClient_InvalidJSONFormat(t *testing.T) {
+	ctx := context.Background()
+	mockClient := NewMockClient()
+	jsonClient := NewJSONClient(mockClient, "invalid-json-secret")
+
+	// Create a secret with invalid JSON
+	mockClient.CreateOrUpdateSecret(ctx, "invalid-json-secret", "not-a-json-string", "test")
+
+	// Test adding key to secret with invalid JSON
+	err := jsonClient.AddOrUpdateKey(ctx, "key1", "value1")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "secret 'invalid-json-secret' exists but is not in valid JSON format")
 }
