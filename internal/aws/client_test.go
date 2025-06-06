@@ -24,6 +24,49 @@ func TestNewClient(t *testing.T) {
 	assert.Equal(t, "us-east-1", client.region)
 }
 
+func TestNewClientWithOptions(t *testing.T) {
+	// Skip if AWS credentials are not configured
+	if os.Getenv("AWS_ACCESS_KEY_ID") == "" {
+		t.Skip("Skipping test: AWS credentials not configured")
+	}
+
+	tests := []struct {
+		name    string
+		opts    ClientOptions
+		wantErr bool
+	}{
+		{
+			name: "with region only",
+			opts: ClientOptions{
+				Region: "us-west-2",
+			},
+			wantErr: false,
+		},
+		{
+			name: "with region and profile",
+			opts: ClientOptions{
+				Region:  "eu-west-1",
+				Profile: "default",
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client, err := NewClientWithOptions(tt.opts)
+			
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.NotNil(t, client)
+				assert.Equal(t, tt.opts.Region, client.region)
+			}
+		})
+	}
+}
+
 func TestNewClientDifferentRegions(t *testing.T) {
 	// Skip if AWS credentials are not configured
 	if os.Getenv("AWS_ACCESS_KEY_ID") == "" {

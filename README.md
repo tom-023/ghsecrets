@@ -80,6 +80,16 @@ Configure AWS credentials using standard AWS credential chain:
 - AWS credentials file (`~/.aws/credentials`)
 - IAM role (when running on EC2/ECS/Lambda)
 
+You can specify which AWS profile to use:
+```bash
+# Use a specific profile from ~/.aws/credentials
+ghsecrets push -k KEY -v VALUE -b aws --aws-profile production
+
+# Or set in config file
+# aws:
+#   profile: production
+```
+
 ### GCP
 Configure GCP credentials:
 - Service account key file (specified in config)
@@ -125,6 +135,7 @@ Push a secret to GitHub and optionally backup to cloud.
 - `-o, --owner`: GitHub repository owner
 - `-r, --repo`: GitHub repository name
 - `--aws-region`: AWS region for Secrets Manager (default: us-east-1)
+- `--aws-profile`: AWS profile to use from ~/.aws/credentials
 - `--gcp-project`: GCP project ID
 
 ## Security

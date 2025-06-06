@@ -14,13 +14,14 @@ import (
 )
 
 var (
-	key     string
-	value   string
-	backup  string
-	owner   string
-	repo    string
-	region  string
-	project string
+	key        string
+	value      string
+	backup     string
+	owner      string
+	repo       string
+	region     string
+	awsProfile string
+	project    string
 )
 
 var pushCmd = &cobra.Command{
@@ -45,6 +46,7 @@ func init() {
 	pushCmd.Flags().StringVarP(&owner, "owner", "o", "", "GitHub repository owner")
 	pushCmd.Flags().StringVarP(&repo, "repo", "r", "", "GitHub repository name")
 	pushCmd.Flags().StringVar(&region, "aws-region", "us-east-1", "AWS region for Secrets Manager")
+	pushCmd.Flags().StringVar(&awsProfile, "aws-profile", "", "AWS profile to use (from ~/.aws/credentials)")
 	pushCmd.Flags().StringVar(&project, "gcp-project", "", "GCP project ID")
 
 	pushCmd.MarkFlagRequired("key")
@@ -53,6 +55,7 @@ func init() {
 	viper.BindPFlag("github.owner", pushCmd.Flags().Lookup("owner"))
 	viper.BindPFlag("github.repo", pushCmd.Flags().Lookup("repo"))
 	viper.BindPFlag("aws.region", pushCmd.Flags().Lookup("aws-region"))
+	viper.BindPFlag("aws.profile", pushCmd.Flags().Lookup("aws-profile"))
 	viper.BindPFlag("gcp.project", pushCmd.Flags().Lookup("gcp-project"))
 }
 
@@ -113,7 +116,12 @@ func backupToAWS(ctx context.Context, key, value string) error {
 		awsRegion = "us-east-1"
 	}
 
-	awsClient, err := aws.NewClient(awsRegion)
+	awsProfile := viper.GetString("aws.profile")
+	
+	awsClient, err := aws.NewClientWithOptions(aws.ClientOptions{
+		Region:  awsRegion,
+		Profile: awsProfile,
+	})
 	if err != nil {
 		return err
 	}

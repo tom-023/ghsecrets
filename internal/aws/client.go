@@ -14,10 +14,29 @@ type Client struct {
 	region string
 }
 
+// ClientOptions contains options for creating an AWS client
+type ClientOptions struct {
+	Region  string
+	Profile string
+}
+
+// NewClient creates a new AWS Secrets Manager client with the specified region
 func NewClient(region string) (*Client, error) {
-	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion(region),
-	)
+	return NewClientWithOptions(ClientOptions{Region: region})
+}
+
+// NewClientWithOptions creates a new AWS Secrets Manager client with options
+func NewClientWithOptions(opts ClientOptions) (*Client, error) {
+	configOpts := []func(*config.LoadOptions) error{
+		config.WithRegion(opts.Region),
+	}
+
+	// Add profile if specified
+	if opts.Profile != "" {
+		configOpts = append(configOpts, config.WithSharedConfigProfile(opts.Profile))
+	}
+
+	cfg, err := config.LoadDefaultConfig(context.TODO(), configOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("unable to load SDK config: %w", err)
 	}
@@ -26,7 +45,7 @@ func NewClient(region string) (*Client, error) {
 
 	return &Client{
 		client: client,
-		region: region,
+		region: opts.Region,
 	}, nil
 }
 
