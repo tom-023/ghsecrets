@@ -1,0 +1,143 @@
+package ghsecrets
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"github.com/tom-023/ghsecrets/internal/aws"
+	"github.com/tom-023/ghsecrets/internal/gcp"
+	"github.com/tom-023/ghsecrets/internal/github"
+)
+
+var (
+	key     string
+	value   string
+	backup  string
+	owner   string
+	repo    string
+	region  string
+	project string
+)
+
+var pushCmd = &cobra.Command{
+	Use:   "push",
+	Short: "Push a secret to GitHub and optionally backup to cloud",
+	Long: `Push a secret to GitHub Secrets and optionally backup to
+AWS Secrets Manager or GCP Secret Manager.
+
+Example:
+  ghsecrets push -k API_KEY -v "secret-value" -b aws
+  ghsecrets push -k DATABASE_URL -v "postgres://..." -b gcp
+  ghsecrets push -k TOKEN -v "token123" (GitHub only)`,
+	RunE: runPush,
+}
+
+func init() {
+	rootCmd.AddCommand(pushCmd)
+
+	pushCmd.Flags().StringVarP(&key, "key", "k", "", "Secret key name (required)")
+	pushCmd.Flags().StringVarP(&value, "value", "v", "", "Secret value (required)")
+	pushCmd.Flags().StringVarP(&backup, "backup", "b", "", "Backup destination: aws, gcp, or none")
+	pushCmd.Flags().StringVarP(&owner, "owner", "o", "", "GitHub repository owner")
+	pushCmd.Flags().StringVarP(&repo, "repo", "r", "", "GitHub repository name")
+	pushCmd.Flags().StringVar(&region, "aws-region", "us-east-1", "AWS region for Secrets Manager")
+	pushCmd.Flags().StringVar(&project, "gcp-project", "", "GCP project ID")
+
+	pushCmd.MarkFlagRequired("key")
+	pushCmd.MarkFlagRequired("value")
+
+	viper.BindPFlag("github.owner", pushCmd.Flags().Lookup("owner"))
+	viper.BindPFlag("github.repo", pushCmd.Flags().Lookup("repo"))
+	viper.BindPFlag("aws.region", pushCmd.Flags().Lookup("aws-region"))
+	viper.BindPFlag("gcp.project", pushCmd.Flags().Lookup("gcp-project"))
+}
+
+func runPush(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
+
+	// Get GitHub configuration
+	ghToken := viper.GetString("github.token")
+	if ghToken == "" {
+		ghToken = os.Getenv("GITHUB_TOKEN")
+	}
+	if ghToken == "" {
+		return fmt.Errorf("GitHub token not found. Set GITHUB_TOKEN environment variable or configure in .ghsecrets.yaml")
+	}
+
+	if owner == "" {
+		owner = viper.GetString("github.owner")
+	}
+	if repo == "" {
+		repo = viper.GetString("github.repo")
+	}
+
+	if owner == "" || repo == "" {
+		return fmt.Errorf("GitHub owner and repo must be specified via flags or config file")
+	}
+
+	// Push to GitHub Secrets
+	fmt.Printf("Pushing secret '%s' to GitHub repository %s/%s...\n", key, owner, repo)
+	ghClient := github.NewClient(ghToken, owner, repo)
+	if err := ghClient.CreateOrUpdateSecret(ctx, key, value); err != nil {
+		return fmt.Errorf("failed to push to GitHub: %w", err)
+	}
+	fmt.Println("✓ Successfully pushed to GitHub Secrets")
+
+	// Handle backup if specified
+	if backup != "" && backup != "none" {
+		switch strings.ToLower(backup) {
+		case "aws":
+			if err := backupToAWS(ctx, key, value); err != nil {
+				return fmt.Errorf("failed to backup to AWS: %w", err)
+			}
+			fmt.Println("✓ Successfully backed up to AWS Secrets Manager")
+
+		case "gcp":
+			if err := backupToGCP(ctx, key, value); err != nil {
+				return fmt.Errorf("failed to backup to GCP: %w", err)
+			}
+			fmt.Println("✓ Successfully backed up to GCP Secret Manager")
+
+		default:
+			return fmt.Errorf("invalid backup destination: %s (use 'aws', 'gcp', or 'none')", backup)
+		}
+	}
+
+	return nil
+}
+
+func backupToAWS(ctx context.Context, key, value string) error {
+	awsRegion := viper.GetString("aws.region")
+	if awsRegion == "" {
+		awsRegion = "us-east-1"
+	}
+
+	awsClient, err := aws.NewClient(awsRegion)
+	if err != nil {
+		return err
+	}
+
+	description := fmt.Sprintf("GitHub Secret backup for %s/%s", owner, repo)
+	return awsClient.CreateOrUpdateSecret(ctx, key, value, description)
+}
+
+func backupToGCP(ctx context.Context, key, value string) error {
+	gcpProject := viper.GetString("gcp.project")
+	if gcpProject == "" {
+		return fmt.Errorf("GCP project ID not specified. Use --gcp-project flag or configure in .ghsecrets.yaml")
+	}
+
+	gcpCreds := viper.GetString("gcp.credentials_path")
+	
+	gcpClient, err := gcp.NewClient(gcpProject, gcpCreds)
+	if err != nil {
+		return err
+	}
+	defer gcpClient.Close()
+
+	return gcpClient.CreateOrUpdateSecret(ctx, key, value)
+}
