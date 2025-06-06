@@ -69,9 +69,17 @@ func (c *Client) getPublicKey(ctx context.Context) (*github.PublicKey, error) {
 }
 
 func encryptSecret(publicKey, secret string) (string, error) {
+	if publicKey == "" {
+		return "", fmt.Errorf("failed to encrypt: public key is empty")
+	}
+
 	publicKeyBytes, err := base64.StdEncoding.DecodeString(publicKey)
 	if err != nil {
 		return "", fmt.Errorf("failed to decode public key: %w", err)
+	}
+
+	if len(publicKeyBytes) != 32 {
+		return "", fmt.Errorf("failed to encrypt: invalid public key length")
 	}
 
 	var publicKeyArray [32]byte
