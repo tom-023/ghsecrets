@@ -108,6 +108,10 @@ func runRestoreAWS(cmd *cobra.Command, args []string) error {
 	// Get all keys from AWS
 	keys, err := jsonClient.GetAllKeys(ctx)
 	if err != nil {
+		// Check if it's because the secret doesn't exist
+		if _, getErr := awsClient.GetSecret(ctx, awsSecretName); getErr != nil {
+			return fmt.Errorf("AWS Secrets Manager secret '%s' not found. Please create it first in AWS console or specify a different secret_name in config", awsSecretName)
+		}
 		return fmt.Errorf("failed to retrieve secrets from AWS: %w", err)
 	}
 
