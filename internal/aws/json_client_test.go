@@ -3,6 +3,7 @@ package aws
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -125,4 +126,68 @@ func TestJSONClient_InvalidJSONFormat(t *testing.T) {
 	err := jsonClient.AddOrUpdateKey(ctx, "key1", "value1")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "secret 'invalid-json-secret' exists but is not in valid JSON format")
+}
+
+func TestJSONClient_AuthenticationErrors(t *testing.T) {
+	ctx := context.Background()
+	mockClient := NewMockClient()
+	jsonClient := NewJSONClient(mockClient, "test-secret")
+
+	tests := []struct {
+		name          string
+		errorMessage  string
+		expectedError string
+	}{
+		{
+			name:          "Expired token error",
+			errorMessage:  "ExpiredTokenException: The security token included in the request is expired",
+			expectedError: "AWS authentication error",
+		},
+		{
+			name:          "Invalid token error",
+			errorMessage:  "InvalidTokenException: The security token included in the request is invalid",
+			expectedError: "AWS authentication error",
+		},
+		{
+			name:          "No credential providers",
+			errorMessage:  "NoCredentialProviders: no valid providers in chain",
+			expectedError: "AWS authentication error",
+		},
+		{
+			name:          "Access denied",
+			errorMessage:  "AccessDeniedException: User is not authorized to perform this action",
+			expectedError: "AWS authentication error",
+		},
+		{
+			name:          "SSO token expired",
+			errorMessage:  "token has expired, refresh with aws sso login",
+			expectedError: "AWS authentication error",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set error for GetSecret
+			mockClient.SetError("GetSecret", fmt.Errorf(tt.errorMessage))
+
+			// Test AddOrUpdateKey
+			err := jsonClient.AddOrUpdateKey(ctx, "key1", "value1")
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.expectedError)
+			assert.Contains(t, err.Error(), "aws sso login")
+
+			// Test GetKey
+			_, err = jsonClient.GetKey(ctx, "key1")
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.expectedError)
+
+			// Test GetAllKeys
+			_, err = jsonClient.GetAllKeys(ctx)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.expectedError)
+
+			// Clear error for next test
+			mockClient.SetError("GetSecret", nil)
+		})
+	}
 }

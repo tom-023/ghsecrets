@@ -3,7 +3,11 @@ package aws
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
+	
+	"github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
 )
 
 // JSONClient wraps the AWS client to store multiple key-value pairs in a single secret
@@ -25,8 +29,7 @@ func (j *JSONClient) AddOrUpdateKey(ctx context.Context, key, value string) erro
 	// First check if the secret exists
 	existingJSON, err := j.client.GetSecret(ctx, j.secretName)
 	if err != nil {
-		// Secret doesn't exist
-		return fmt.Errorf("AWS Secrets Manager secret '%s' not found. Please create it first in AWS console or specify a different secret_name in config", j.secretName)
+		return j.wrapGetSecretError(err)
 	}
 	
 	// Parse existing secret data
@@ -57,7 +60,7 @@ func (j *JSONClient) AddOrUpdateKey(ctx context.Context, key, value string) erro
 func (j *JSONClient) GetKey(ctx context.Context, key string) (string, error) {
 	existingJSON, err := j.client.GetSecret(ctx, j.secretName)
 	if err != nil {
-		return "", fmt.Errorf("failed to get secret: %w", err)
+		return "", j.wrapGetSecretError(err)
 	}
 	
 	var secretData map[string]string
@@ -77,7 +80,7 @@ func (j *JSONClient) GetKey(ctx context.Context, key string) (string, error) {
 func (j *JSONClient) GetAllKeys(ctx context.Context) (map[string]string, error) {
 	existingJSON, err := j.client.GetSecret(ctx, j.secretName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get secret: %w", err)
+		return nil, j.wrapGetSecretError(err)
 	}
 	
 	var secretData map[string]string
@@ -86,4 +89,31 @@ func (j *JSONClient) GetAllKeys(ctx context.Context) (map[string]string, error) 
 	}
 	
 	return secretData, nil
+}
+
+// wrapGetSecretError wraps GetSecret errors with more meaningful messages
+func (j *JSONClient) wrapGetSecretError(err error) error {
+	// First check for common authentication/authorization errors in the error message
+	// This must come before ResourceNotFoundException check because AWS may return
+	// ResourceNotFoundException even when the real issue is authentication
+	errStr := err.Error()
+	if strings.Contains(errStr, "ExpiredToken") || 
+	   strings.Contains(errStr, "InvalidToken") ||
+	   strings.Contains(errStr, "NoCredentialProviders") ||
+	   strings.Contains(errStr, "UnauthorizedException") ||
+	   strings.Contains(errStr, "AccessDenied") ||
+	   strings.Contains(errStr, "no valid credential") ||
+	   strings.Contains(errStr, "failed to retrieve credentials") ||
+	   strings.Contains(errStr, "token has expired") {
+		return fmt.Errorf("AWS authentication error: %w. Please check your AWS credentials or run 'aws sso login' if using SSO", err)
+	}
+	
+	// Check if it's a resource not found error (only after ruling out auth issues)
+	var resourceNotFoundErr *types.ResourceNotFoundException
+	if errors.As(err, &resourceNotFoundErr) {
+		return fmt.Errorf("AWS Secrets Manager secret '%s' not found. Please create it first in AWS console or specify a different secret_name in config", j.secretName)
+	}
+	
+	// For any other error, return it as-is
+	return fmt.Errorf("failed to access AWS Secrets Manager: %w", err)
 }

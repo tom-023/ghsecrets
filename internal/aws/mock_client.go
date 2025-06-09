@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	
+	"github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
 )
 
 // MockClient is a mock implementation of AWS Secrets Manager client for testing
@@ -59,7 +61,10 @@ func (m *MockClient) GetSecret(ctx context.Context, name string) (string, error)
 
 	value, exists := m.secrets[name]
 	if !exists {
-		return "", fmt.Errorf("secret not found: %s", name)
+		// Return AWS SDK ResourceNotFoundException for consistency
+		return "", &types.ResourceNotFoundException{
+			Message: &[]string{fmt.Sprintf("Secrets Manager can't find the specified secret.")}[0],
+		}
 	}
 
 	return value, nil
